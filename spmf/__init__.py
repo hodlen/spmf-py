@@ -126,7 +126,10 @@ class Spmf:
         patterns = []
         for line in lines:
             line = line.strip()
-            patterns.append(line.split(" -1 "))
+            pattern = line.split(" -1 ")
+            if pattern[-1].startswith("-2"):
+                pattern[-1] = pattern[-1][3:]
+            patterns.append(pattern)
 
         self.patterns_ = patterns
         return patterns
