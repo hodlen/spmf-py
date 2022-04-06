@@ -15,6 +15,7 @@ import pandas as pd
 import os
 import subprocess
 import tempfile
+import re
 
 
 class Spmf:
@@ -47,7 +48,7 @@ class Spmf:
             input_direct, input_filename, input_type)
         self.output_ = output_filename
         self.arguments_ = [str(a) for a in arguments]
-        self.patterns_ = []
+        self.parsed_output_ = []
         self.df_ = None
         self.memory_ = memory
 
@@ -114,7 +115,7 @@ class Spmf:
 
     def parse_output(self):
         """
-        Parse the output of SPMF and saves in in member variable patterns_
+        Parse the output of SPMF and saves in in member variable parsed_output_
         -1 separates itemsets
         -2 indicates end of a sequence
         http://data-mining.philippe-fournier-viger.com/introduction-to-sequential-rule-mining/#comment-4114
@@ -123,16 +124,19 @@ class Spmf:
         with open(self.output_, "r") as f:
             lines = f.readlines()
 
-        patterns = []
+        parsed_output = []
         for line in lines:
             line = line.strip()
-            pattern = line.split(" -1 ")
-            if pattern[-1].startswith("-2"):
-                pattern[-1] = pattern[-1][3:]
-            patterns.append(pattern)
+            match = re.search(r'^(.+)-2 #SUP: (\d+) #SID: (.+)$', line)
+            if match == None:
+                raise RuntimeError('cannot parse SPMF output. check if format is desired.')
+            (pattern, support, sequence_ids) = match.groups()
+            pattern = list(map(lambda s: int(s), filter(lambda s: len(s) > 0, pattern.split(' -1 '))))
+            support = int(support)
+            sequence_ids = list(map(lambda s: int(s), sequence_ids.split(' ')))
+            parsed_output.append((pattern, support, sequence_ids))
 
-        self.patterns_ = patterns
-        return patterns
+        self.parsed_output_ = parsed_output
 
     def to_pandas_dataframe(self, pickle=False):
         """
@@ -141,20 +145,12 @@ class Spmf:
         """
         # TODO: Optional parameter for pickle file name
 
-        if not self.patterns_:
+        if not self.parsed_output_:
             self.parse_output()
 
         patterns_dict_list = []
-        for pattern_sup in self.patterns_:
-            pattern = pattern_sup[:-1]
-            sup = pattern_sup[-1:][0]
-            sup = sup.strip()
-            if not sup.startswith("#SUP"):
-                print("support extraction failed")
-            sup = sup.split()
-            sup = sup[1]
-
-            patterns_dict_list.append({'pattern': pattern, 'sup': int(sup)})
+        for (pattern, support, sequence_ids) in self.parsed_output_:
+            patterns_dict_list.append({'pattern': pattern, 'sup': support, 'sequence_ids': sequence_ids})
 
         df = pd.DataFrame(patterns_dict_list)
         self.df_ = df
