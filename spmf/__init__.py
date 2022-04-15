@@ -127,10 +127,10 @@ class Spmf:
         parsed_output = []
         for line in lines:
             line = line.strip()
-            match = re.search(r'^(.+)-2 #SUP: (\d+) #SID: (.+)$', line)
+            match = re.search(r'^(.+)(-2 )?#SUP: (\d+) #SID: (.+)$', line)
             if match == None:
                 raise RuntimeError('cannot parse SPMF output. check if format is desired.')
-            (pattern, support, sequence_ids) = match.groups()
+            (pattern, _, support, sequence_ids) = match.groups()
             pattern = list(map(lambda s: int(s), filter(lambda s: len(s) > 0, pattern.split(' -1 '))))
             support = int(support)
             sequence_ids = list(map(lambda s: int(s), sequence_ids.split(' ')))
